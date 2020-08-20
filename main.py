@@ -1,3 +1,4 @@
+#!/home/ahmed/anaconda3/envs/tensorflow_cpu/bin/python3.6
 import imageio
 import numpy as np
 import os
@@ -6,22 +7,20 @@ import tensorflow as tf
 from datetime import datetime
 from object_detection.utils import label_map_util
 import json
-
 from object_detection.utils import visualization_utils as vis_util
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 model_name = 'ssd_mobilenet_v1_coco_2018_01_28'
 model_file = model_name + '.tar.gz'
 PATH_TO_CKPT = model_name + '/frozen_inference_graph.pb'
 PATH_TO_LABELS = os.path.join('object_detection/data', 'mscoco_label_map.pbtxt')
 NUM_CLASSES = 90
-outputfile = open("outputfile.txt", "w+")
 min_score_thresh = 0.5
 tarfile = tarfile.open(model_file)
 for file in tarfile.getmembers():
     file_name = os.path.basename(file.name)
     if 'frozen_inference_graph.pb' in file_name:
         tarfile.extract(file, os.getcwd())
-
+PATH_TO_CKPT.summary()
 detection_graph = tf.Graph()
 with detection_graph.as_default():
     od_graph_def = tf.GraphDef()
@@ -49,13 +48,13 @@ with detection_graph.as_default():
         detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
         num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
-        input_video = 'sample'
+        input_video = '/home/ahmed/Desktop/madebymesample'
         video_reader = imageio.get_reader('%s.mp4' % input_video)
-        video_writer = imageio.get_writer('%s_annotated.mp4' % input_video, fps=30)
+        video_writer = imageio.get_writer('%s_annotated.mp4' % input_video, fps=30,macro_block_size = None)
 
         t0 = datetime.now()
         n_frames = 0
-        case_list=[]
+        case_list = []
         for frame in video_reader:
             image_np = frame
             n_frames += 1
@@ -72,10 +71,16 @@ with detection_graph.as_default():
                 use_normalized_coordinates=True,
                 line_thickness=8)
             video_writer.append_data(image_np)
-            outputfile.write(str(category_index[classes[0][0]]))
-            """print(category_index[classes[0][0]]['name'])"""
-            dictionary = {'object': category_index[classes[0][0]]['name'], 'frame': n_frames}
-            case_list.append(dictionary)
+
+            final_score = np.squeeze(scores)
+            count = 0
+            for i in range(100):
+                if scores is None or final_score[i] > 0.5:
+                    count = count + 1
+
+            for x in range(count):
+                dictionary = {'object': category_index[classes[0][x]]['name'], 'frame': n_frames}
+                case_list.append(dictionary)
 
         fps = n_frames / (datetime.now() - t0).total_seconds()
         video_writer.close()
